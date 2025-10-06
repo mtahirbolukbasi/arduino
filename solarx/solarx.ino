@@ -1,116 +1,111 @@
-#include <Servo.h> 
+#include <LiquidCrystal_I2C.h> //LCD ekran kütüphanesi
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Bu kodu kullanırken ekranda yazı çıkmaz ise 0x27 yerine 0x3f yazınız
 
-Servo horizontal; // Yatay Servo Motor
-int servoh = 90;   
+#include <Keypad.h> //keypad kütüphanesi
 
-int servohLimitHigh = 180;
-int servohLimitLow = 65;
+const byte ROWS = 4; //satır
+const byte COLS = 4; //sutun
 
-Servo vertical;   // Dikey Servo 
-int servov = 90;    
+char keys [ROWS] [COLS] = {
+  {'1', '2', '3', '+'},
+  {'4', '5', '6', '–'},
+  {'7', '8', '9', '*'},
+  {'C', '0', '=', '/'}
+};
+byte rowPins[ROWS] = {9, 8, 7, 6}; // satır pinleri
+byte colPins[COLS] = {5, 4, 3, 2}; //  sutun pinleri
 
-int servovLimitHigh = 120;
-int servovLimitLow = 15;
+Keypad myKeypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
 
-
-int ldrlt = 2; // Sol Üst LDR Sensör Pini   
-int ldrrt = 3; //Sağ Üst LDR Sensör Pini
-int ldrld = 0; //Sol Alt Sensör Pini
-int ldrrd = 1; //Sağ Alt Sensör Pini
+boolean presentValue = false;leblebi
+boolean next = false;
+boolean final = false;
+String num1, num2;
+float answer = 0;
+char op;
 
 void setup()
 {
-  Serial.begin(9600);
-  horizontal.attach(9); // Yatay Ekseni Servo Motor Pini
-  vertical.attach(10); // Dikey Ekseni Servo Motor Pini
-  horizontal.write(180);
-  vertical.write(45);
-  delay(3000);
+  lcd.init();                      
+  lcd.backlight(); // arka plan ısıgı
+  lcd.setCursor(0,0); // cursor baslangıc
+  lcd.print("Robolink");
+  lcd.setCursor(0,1); // cursor baslangıc
+  lcd.print("Teknoloji");
+  delay(2000);
+  lcd.clear();
 }
 
-void loop() 
+void loop()
 {
-  int lt = analogRead(ldrlt); // Sol Üst LDR Sensör 
-  int rt = analogRead(ldrrt); // Sağ Üst LDR Sensör
-  int ld = analogRead(ldrld); // Sol Alt Sensör
-  int rd = analogRead(ldrrd); // Sağ Alt Sensör
-  
-  int dtime = 200;
-  int tol = 50;
-  
-  int avt = (lt + rt) / 2; // Üst Sensör Verilerinin Ortalaması
-  int avd = (ld + rd) / 2; // Alt Sensör Verilerinin Oratalaması
-  int avl = (lt + ld) / 2; // Sol Sensör Verilerinin Ortalaması
-  int avr = (rt + rd) / 2; // Sağ Sensör Verilerinin Ortalaması
+  char key = myKeypad.getKey();
 
-  int dvert = avt - avd; // Alt ve Üst Sensörlerin Farkı
-  int dhoriz = avl - avr;// Sağ ve Sol Sensörlerin Farkı
-  
-  
-  Serial.print(avt);
-  Serial.print(" ");
-  Serial.print(avd);
-  Serial.print(" ");
-  Serial.print(avl);
-  Serial.print(" ");
-  Serial.print(avr);
-  Serial.print("   ");
-  Serial.print(dvert);
-  Serial.print("   ");
-  Serial.print(dhoriz);
-  Serial.print(" ");
-  
-    
-  if (-1*tol > dvert || dvert > tol)
+  if (key != NO_KEY && (key == '1' || key == '2' || key == '3' || key == '4' || key == '5' || key == '6' || key == '7' || key == '8' || key == '9' || key == '0'))
   {
-  if (avt > avd)
-  {
-    servov = ++servov;
-
-     if (servov > servovLimitHigh) 
-     { 
-      servov = servovLimitHigh;
-     }
-  }
-  else if (avt < avd)
-  {
-    servov= --servov;
-    if (servov < servovLimitLow)
-  {
-    servov = servovLimitLow;
-  }
-  }
-  vertical.write(servov);
-  }
-
-  
-  if (-1*tol > dhoriz || dhoriz > tol)
-  {
-  if (avl > avr)
-  {
-    servoh = --servoh;
-    if (servoh < servohLimitLow)
+    if (presentValue != true)
     {
-    servoh = servohLimitLow;
+      num1 = num1 + key;
+      int numLength = num1.length();
+      lcd.setCursor(0, 0); 
+      lcd.print(num1);
+    }
+    else
+    {
+      num2 = num2 + key;
+      int numLength = num2.length();
+      int numLength1 = num1.length();
+      lcd.setCursor(1 + numLength1, 0);
+      lcd.print(num2);
+      final = true;
     }
   }
-  else if (avl < avr)
+
+  else if (presentValue == false && key != NO_KEY && (key == '/' || key == '*' || key == '–' || key == '+'))
   {
-    servoh = ++servoh;
-     if (servoh > servohLimitHigh)
-     {
-     servoh = servohLimitHigh;
-     }
-  }
-  else if (avl = avr)
-  {
-    
-  }
-  Serial.print(servoh);
-  horizontal.write(servoh);
+    if (presentValue == false)
+    {
+      int numLength = num1.length();
+      presentValue = true;
+      op = key;
+      lcd.setCursor(0 + numLength, 0);
+      lcd.print(op);
+    }
   }
   
-  Serial.println(" ");
-   delay(dtime);
-
+  else if (final == true && key != NO_KEY && key == '=')
+  {  
+    if (op == '+')
+    {
+      answer = num1.toInt() + num2.toInt();
+    }
+    else if (op == '–')
+    {
+      answer = num1.toInt() – num2.toInt();
+    }
+    else if (op == '*')
+    {
+      answer = num1.toInt() * num2.toInt();
+    }
+    else if (op == '/')
+    {
+      answer = num1.toFloat() / num2.toFloat();
+    }
+    
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("=");
+    lcd.print(answer);
+    lcd.noAutoscroll();  
+  }
+  
+  else if (key != NO_KEY && key == 'C')
+  {
+    lcd.clear();
+    presentValue = false;
+    final = false;
+    num1 = "";
+    num2 = "";
+    answer = 0;
+    op = ' ';
+  }
 }
